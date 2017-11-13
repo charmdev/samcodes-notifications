@@ -12,11 +12,12 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ApplicationInfo;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.view.Window;
 import android.util.Log;
-import android.content.res.Resources;
 import java.lang.Runnable;
 import java.util.concurrent.ConcurrentHashMap;
 import me.leolin.shortcutbadger.ShortcutBadger;
@@ -102,23 +103,23 @@ class Common {
 		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, slot, alertIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 		AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
 		if(alarmManager != null) {
-			alarmManager.set(AlarmManager.RTC_WAKEUP, alertTime, pendingIntent);
+			if (isDozeSupported() && isDozeWhiteListed(context))
+				alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alertTime, pendingIntent);
+			else
+				alarmManager.set(AlarmManager.RTC_WAKEUP, alertTime, pendingIntent);
 		}
 		return pendingIntent;
 	}
 
-	public static String getAppTitleFromResource(Context ctx) {
-		try {
-			Resources res = ctx.getResources();
-			String pkgName = ctx.getPackageName();
-			int res_id = res.getIdentifier("app_title", "string", pkgName);
-			return res.getString(res_id);
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return "failed to retrieve title";
-		}
-	}
-	
+    private static boolean isDozeSupported() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
+    }
+
+    private static boolean isDozeWhiteListed(Context context) {
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        return powerManager.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
 	// Get application icon badge number
 	public static int getApplicationIconBadgeNumber(Context context) {
 		SharedPreferences prefs = getApplicationIconBadgeSettings(context);
